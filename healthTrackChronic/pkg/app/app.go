@@ -5,10 +5,19 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/maxiaolu1981/base/component-base/pkg/cli/globalflag"
+	"github.com/maxiaolu1981/base/component-base/pkg/term"
+	"github.com/maxiaolu1981/base/errors"
 	"github.com/maxiaolu1981/healthTrackChronic/pkg/util/str"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
-	cliflag "github.com/base/maxiaolu1981/component-base/pkg/cli/flag"
+	cliflag "github.com/maxiaolu1981/base/component-base/pkg/cli/flag"
+	"github.com/maxiaolu1981/base/component-base/pkg/version"
+
+	"github.com/maxiaolu1981/base/component-base/pkg/version/verflag"
+
+	"github.com/maxiaolu1981/healthTrackChronic/pkg/log"
 )
 
 var (
@@ -52,7 +61,7 @@ Use "%s --help" for more information about a command.{{end}}
 	)
 )
 
-type RunFunc func(baseName string)
+type RunFunc func(baseName string) error
 type Option func(*App)
 
 type App struct {
@@ -180,8 +189,107 @@ func buildCommand(app *App) {
 		}
 		cmd.SetHelpCommand(helpCommand(str.FormatBaseName(app.baseName)))
 	}
-	if app.runFunc != nil{
-		cmd.RunE = app.run
+	if app.runFunc != nil {
+		cmd.RunE = app.runCommand
 	}
 
+	var namedFlagSets cliflag.NamedFlagSets
+	if app.options != nil {
+		namedFlagSets = app.options.Flags()
+		fs := cmd.Flags()
+		for _, v := range namedFlagSets.FlagSets {
+			fs.AddFlagSet(v)
+		}
+	}
+	if !app.noVersion {
+		verflag.AddFlags(namedFlagSets.FlagSet("global"))
+	}
+	if !app.noConfig {
+		addConfigFlag(app.baseName, namedFlagSets.FlagSet("global"))
+	}
+	globalflag.AddGlobalFlags(namedFlagSets.FlagSet("global"), cmd.Name())
+	// add new global flagset to cmd FlagSet
+	cmd.Flags().AddFlagSet(namedFlagSets.FlagSet("global"))
+
+	addCmdTemplate(cmd, namedFlagSets)
+	app.cmd = cmd
+}
+
+func (app *App) runCommand(cmd *cobra.Command, args []string) error {
+	printWorkingDir()
+	cliflag.PrintFlags(cmd.Flags())
+	if !app.noVersion {
+		verflag.PrintAndExitIfRequested()
+	}
+	//用于将命令行标志（flags）和配置文件中的参数
+	// 绑定到应用的配置结构体（a.options）中，
+	// 前提是应用启用了配置功能（a.noConfig 为 false）。
+	if !app.noConfig {
+		if err := viper.BindPFlags(cmd.Flags()); err != nil {
+			return err
+		}
+		if err := viper.Unmarshal(app.options); err != nil {
+			return err
+		}
+	}
+	if !app.silence {
+		log.Infof("%v 开始运行....%s", progressMessage, app.name)
+		if !app.noVersion {
+			log.Infof("%v Version: `%s`", progressMessage, version.Get().ToJSON())
+		}
+		if !app.noConfig {
+			log.Infof("%v Config file used: `%s`", progressMessage, viper.ConfigFileUsed())
+		}
+	}
+	if app.options != nil {
+		if err := app.applyOptionRules(); err != nil {
+			return nil
+		}
+	}
+	if app.runFunc != nil {
+		return app.runFunc(app.baseName)
+	}
+	return nil
+}
+
+// 是应用配置选项的 “规则处理函数”，
+// 用于在配置解析完成后，对配置选项（a.options）执行补全、
+// 验证和打印操作，确保配置合法且可用。
+func (a *App) applyOptionRules() error {
+	//补全配置（CompleteableOptions 接口
+	if completeableOptions, ok := a.options.(CompleteableOptions); ok {
+		if err := completeableOptions.Complete(); err != nil {
+			return err
+		}
+	}
+	//校验配置选项的合法性（如取值范围、必填项、格式等）。
+	if errs := a.options.Validate(); len(errs) != 0 {
+		return errors.NewAggregate(errs)
+	}
+	//在非静默模式下，打印最终生效的配置信息（方便调试和确认配置）。
+	if printableOptions, ok := a.options.(PrintableOptions); ok && !a.silence {
+		log.Infof("%v Config: `%s`", progressMessage, printableOptions.String())
+	}
+
+	return nil
+}
+
+func printWorkingDir() {
+	wd, _ := os.Getwd()
+	log.Infof("%v WorkingDir: %s", progressMessage, wd)
+}
+
+func addCmdTemplate(cmd *cobra.Command, namedFlagSets cliflag.NamedFlagSets) {
+	usageFmt := "Usage:\n  %s\n"
+	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
+	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
+		fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
+		cliflag.PrintSections(cmd.OutOrStderr(), namedFlagSets, cols)
+
+		return nil
+	})
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
+		cliflag.PrintSections(cmd.OutOrStdout(), namedFlagSets, cols)
+	})
 }

@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/maxiaolu1981/healthTrackChronic/pkg/app"
+
+	cliflag "github.com/maxiaolu1981/base/component-base/pkg/cli/flag"
 )
 
 // 实现CliOptions接口的测试结构体

@@ -1,4 +1,4 @@
-module github.com/maxiaolu1981/log
+module github.com/maxiaolu1981/base/log
 
 go 1.24.5
 
