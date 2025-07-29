@@ -7,8 +7,6 @@ package app
 import (
 	"fmt"
 	"os"
-	"runtime"
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -116,16 +114,4 @@ func (a *App) AddCommand(cmd *Command) {
 // AddCommands adds multiple sub commands to the application.
 func (a *App) AddCommands(cmds ...*Command) {
 	a.commands = append(a.commands, cmds...)
-}
-
-// FormatBaseName is formatted as an executable file name under different
-// operating systems according to the given name.
-func FormatBaseName(basename string) string {
-	// Make case-insensitive and strip executable suffix if present
-	if runtime.GOOS == "windows" {
-		basename = strings.ToLower(basename)
-		basename = strings.TrimSuffix(basename, ".exe")
-	}
-
-	return basename
 }

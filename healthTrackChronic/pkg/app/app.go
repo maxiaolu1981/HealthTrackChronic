@@ -2,8 +2,52 @@ package app
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/fatih/color"
+	"github.com/maxiaolu1981/healthTrackChronic/pkg/util/str"
 	"github.com/spf13/cobra"
+)
+
+var (
+	progressMessage = color.GreenString("==>")
+
+	usageTemplate = fmt.Sprintf(`%s{{if .Runnable}}
+  %s{{end}}{{if .HasAvailableSubCommands}}
+  %s{{end}}{{if gt (len .Aliases) 0}}
+
+%s
+  {{.NameAndAliases}}{{end}}{{if .HasExample}}
+
+%s
+{{.Example}}{{end}}{{if .HasAvailableSubCommands}}
+
+%s{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+  %s {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+
+%s
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
+
+%s
+{{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
+
+%s{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
+  {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
+
+Use "%s --help" for more information about a command.{{end}}
+`,
+		color.CyanString("Usage:"),
+		color.GreenString("{{.UseLine}}"),
+		color.GreenString("{{.CommandPath}} [command]"),
+		color.CyanString("Aliases:"),
+		color.CyanString("Examples:"),
+		color.CyanString("Available Commands:"),
+		color.GreenString("{{rpad .Name .NamePadding }}"),
+		color.CyanString("Flags:"),
+		color.CyanString("Global Flags:"),
+		color.CyanString("Additional help topics:"),
+		color.GreenString("{{.CommandPath}} [command]"),
+	)
 )
 
 type RunFunc func(baseName string)
@@ -18,7 +62,7 @@ type App struct {
 	silence     bool                 // 是否静默模式（不打印启动信息）
 	noVersion   bool                 // 是否禁用版本标志（--version）
 	noConfig    bool                 // 是否禁用配置文件支持
-	command     []*Command           // 子命令集合
+	commands    []*Command           // 子命令集合
 	args        cobra.PositionalArgs // 位置参数验证函数
 	cmd         *cobra.Command       // 内部封装的Cobra命令
 }
@@ -103,15 +147,32 @@ func NewApp(name, baseName string, opts ...Option) *App {
 
 /*
 将App的配置转换为cobra.Command实例（a.cmd），是连接App与 Cobra 底层的核心方法，步骤如下：
-初始化cobra.Command，设置基本信息（用法、描述、输入输出流等）。
-添加子命令：将a.commands中的子命令转换为 Cobra 命令并关联到根命令。
+-初始化cobra.Command，设置基本信息（用法、描述、输入输出流等）。
+-添加子命令：将a.commands中的子命令转换为 Cobra 命令并关联到根命令。
 处理标志（flags）：
 添加应用自定义标志（通过a.options.Flags()获取）。
 添加全局标志：版本（--version，通过verflag）、配置文件（--config）等。
 绑定命令执行函数：将a.runCommand设为 Cobra 命令的RunE（执行入口）。
 */
 func buildCommand(app *App) {
+	//初始化cobra.Command
 	cmd := &cobra.Command{
-		Use: app.baseName,
+		Use:           str.FormatBaseName(app.baseName),
+		Short:         app.name,
+		Long:          app.description,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Args:          app.args,
 	}
+
+	cmd.SetUsageTemplate(usageTemplate)
+	cmd.SetOut(os.Stdout)
+	cmd.SetErr(os.Stderr)
+	cmd.Flags().SortFlags = true
+
+	//添加子命令
+	if len(app.commands) > 0 {
+		cmd.AddCommand()
+	}
+
 }
