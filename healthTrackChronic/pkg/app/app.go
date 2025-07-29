@@ -7,6 +7,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/maxiaolu1981/healthTrackChronic/pkg/util/str"
 	"github.com/spf13/cobra"
+
+	cliflag "github.com/maxiaolu1981/component-base/pkg/cli/flag"
 )
 
 var (
@@ -169,6 +171,7 @@ func buildCommand(app *App) {
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	cmd.Flags().SortFlags = true
+
 
 	//添加子命令
 	if len(app.commands) > 0 {
