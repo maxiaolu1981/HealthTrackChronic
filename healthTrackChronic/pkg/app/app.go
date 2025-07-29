@@ -79,7 +79,7 @@ type App struct {
 }
 
 // 绑定配置选项（用于解析命令行参数和配置文件）。
-func withOptions(cli CliOptions) Option {
+func WithOptions(cli CliOptions) Option {
 	return func(app *App) {
 		app.options = cli
 	}

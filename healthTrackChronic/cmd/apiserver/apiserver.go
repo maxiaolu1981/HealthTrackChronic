@@ -1,11 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/maxiaolu1981/healthTrackChronic/internal/apiserver"
 )
 
 func main() {
@@ -16,6 +17,6 @@ func main() {
 	if os.Getenv("GOMAXPROCS") == "" {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
-	fmt.Println(runtime.GOMAXPROCS(0))
+	apiserver.NewApp("iam-apiserver").Run()
 
 }
