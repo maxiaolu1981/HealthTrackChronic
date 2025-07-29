@@ -21,4 +21,9 @@ func NewServerRunOptions() *ServerRunOptions {
 	}
 }
 
-func (s *ServerRunOptions) AddFlags(fs *Pflag.FlagSet)
+func (s *ServerRunOptions) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&s.Mode, "server.mode", s.Mode, "以指定的服务器模式启动服务器。支持的服务器模式：debug（调试）、test（测试）、release（发布）。")
+	fs.BoolVar(&s.Health, "server.healthz", s.Health, "添加自身就绪性检查，并配置 /healthz 路由")
+	fs.StringSliceVar(&s.Middlewares, "server.middlewares", s.Middlewares, "服务器允许使用的中间件列表，以逗号分隔。若此列表为空，则使用默认中间件")
+	
+}
