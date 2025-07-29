@@ -1,9 +1,8 @@
-module github.com/maxiaolu1981/component-base
+module github.com/base/maxiaolu1981/component-base
 
 go 1.24.5
 
 require (
-	github.com/marmotedu/log v0.0.1
 	github.com/spf13/pflag v1.0.7
 )
 

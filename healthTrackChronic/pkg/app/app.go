@@ -8,7 +8,7 @@ import (
 	"github.com/maxiaolu1981/healthTrackChronic/pkg/util/str"
 	"github.com/spf13/cobra"
 
-	cliflag "github.com/maxiaolu1981/component-base/pkg/cli/flag"
+	cliflag "github.com/base/maxiaolu1981/component-base/pkg/cli/flag"
 )
 
 var (
@@ -171,11 +171,17 @@ func buildCommand(app *App) {
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	cmd.Flags().SortFlags = true
-
+	cliflag.InitFlags(cmd.Flags())
 
 	//添加子命令
 	if len(app.commands) > 0 {
-		cmd.AddCommand()
+		for _, c := range app.commands {
+			cmd.AddCommand(c.CobraComand())
+		}
+		cmd.SetHelpCommand(helpCommand(str.FormatBaseName(app.baseName)))
+	}
+	if app.runFunc != nil{
+		cmd.RunE = app.run
 	}
 
 }
